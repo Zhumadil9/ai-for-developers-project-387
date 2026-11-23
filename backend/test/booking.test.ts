@@ -102,4 +102,28 @@ describe('booking API', () => {
     expect(response.status).toBe(400)
     expect(response.body.errors).toContain('note')
   })
+
+  it('does not create a booking or note for a conflicting slot', async () => {
+    const app = createApp()
+    await request(app).post('/bookings').send({
+      eventTypeId: 'planning',
+      guestName: 'Алия',
+      guestEmail: 'aliya@example.com',
+      start: '2026-12-01T15:00:00+05:00',
+      timezone: 'Asia/Almaty',
+    })
+
+    const conflict = await request(app).post('/bookings').send({
+      eventTypeId: 'intro',
+      guestName: 'Дамир',
+      guestEmail: 'damir@example.com',
+      start: '2026-12-01T15:30:00+05:00',
+      timezone: 'Asia/Almaty',
+      note: 'Эта тема не должна сохраниться',
+    })
+
+    expect(conflict.status).toBe(409)
+    expect(bookings).toHaveLength(1)
+    expect(bookings[0].note).toBeUndefined()
+  })
 })
