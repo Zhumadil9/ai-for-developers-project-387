@@ -1,0 +1,140 @@
+name: application-audit
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+      timezone: Europe/Moscow
+  workflow_dispatch:
+
+concurrency:
+  group: application-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Build and collect application report
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          mkdir -p audit-results
+          target="${APP_URL:-http://127.0.0.1:4321}"
+          docker build -t calendar-audit:test .
+          docker run --detach --name calendar-audit --env PORT=4321 --publish 4321:4321 calendar-audit:test
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error "${target}/health" > /tmp/audit-health.json; then
+              echo "AUDIT_STATUS=healthy" >> "$GITHUB_ENV"
+              break
+            fi
+            sleep 2
+          done
+          if [ -z "$AUDIT_STATUS" ]; then
+            echo "AUDIT_STATUS=unavailable" >> "$GITHUB_ENV"
+          fi
+
+      - name: Save application report
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          AUDIT_STATUS: ${{ env.AUDIT_STATUS }}
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs')
+          const report = {
+            kind: 'application-audit',
+            educational: true,
+            checkedAt: new Date().toISOString(),
+            appUrl: process.env.APP_URL || 'http://127.0.0.1:4321',
+            status: process.env.AUDIT_STATUS || 'unavailable',
+            finding: process.env.AUDIT_STATUS === 'healthy'
+              ? null
+              : 'Учебная находка: приложение недоступно по адресу аудита.',
+            healthResponse: fs.existsSync('/tmp/audit-health.json')
+              ? fs.readFileSync('/tmp/audit-health.json', 'utf8')
+              : null,
+          }
+          fs.writeFileSync('audit-results/report.json', JSON.stringify(report, null, 2))
+          NODE
+
+      - name: Run OpenCode audit
+        continue-on-error: true
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        uses: anomalyco/opencode/github@latest
+        with:
+          model: openai/gpt-5.4-mini-fast
+          mentions: /opencode,/oc
+          use_github_token: true
+          prompt: |
+            Analyze audit-results/report.json and the repository issue tracker.
+            This audit is educational, and a finding does not prove an application bug.
+            Search open GitHub Issues for the exact finding title
+            "Учебная находка аудита: недоступность приложения".
+            If the report is healthy, save the no-findings result and do not create an issue.
+            If the report contains a finding and no exact duplicate exists, create one issue
+            labeled educational and needs-triage. Include problem, recommended action,
+            APP_URL, this run URL, and the audit report artifact.
+            Do not modify code or create implementation tickets.
+
+      - name: Publish or deduplicate educational finding
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          status=$(node -e "const fs=require('node:fs'); const p=JSON.parse(fs.readFileSync('audit-results/report.json','utf8')); process.stdout.write(p.status || 'unavailable')")
+          if [ "$status" = "healthy" ]; then
+            echo "No findings in audit report"
+            exit 0
+          fi
+          title="Учебная находка аудита: недоступность приложения"
+          gh label create educational --repo "${{ github.repository }}" --color EDEDED --description "Учебная находка автоматического аудита" --force
+          existing=$(gh issue list --repo "${{ github.repository }}" --state open --search "in:title \"$title\"" --json title --jq '.[].title')
+          if [ -n "$existing" ]; then
+            echo "Duplicate issue already exists: $title"
+            exit 0
+          fi
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "$title" \
+            --label "educational,needs-triage" \
+            --body "## Учебная находка
+
+Это учебная находка аудита, а не подтверждённый дефект приложения.
+
+## Проблема
+
+Адрес приложения, переданный аудиту, должен быть доступен для проверки health endpoint.
+
+## Предлагаемое действие
+
+Проверить переменную APP_URL и доступность приложения, затем повторно запустить audit workflow.
+
+## Отчёт
+
+Приложение: \`${APP_URL:-http://127.0.0.1:4321}\`
+Прогон: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+Отчёт сохранён артефактом этого workflow и не хранится в рабочем дереве."
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-audit-${{ github.run_id }}
+          path: audit-results/report.json
+          retention-days: 30
+
+      - name: Stop audit container
+        if: always()
+        run: docker rm --force calendar-audit 2>/dev/null || true

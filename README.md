@@ -142,6 +142,34 @@ Human feedback is sent with `/oc` in the PR discussion or in a diff-line
 comment. The agent must change the same PR branch; auto-review itself only
 reports defects and does not start an edit loop.
 
+### Scheduled application audit
+
+The workflow [`.github/workflows/application-audit.yml`](./.github/workflows/application-audit.yml)
+runs daily at 06:17 Moscow time (`17 3 * * *`, `Europe/Moscow`) and can also
+be started manually with **Actions → application-audit → Run workflow**.
+Its concurrency group is single-run, and the audit job has a 20-minute timeout.
+
+The optional repository variable `APP_URL` sets the application address.
+The default local container address is `http://127.0.0.1:4321`. The workflow
+starts the Docker image, checks `/health`, saves `audit-results/report.json`,
+and uploads it as artifact `application-audit-<run_id>` for 30 days.
+
+The educational fallback issue is
+`Учебная находка аудита: недоступность приложения`. It is labeled
+`educational` and `needs-triage`; it is not a confirmed application defect.
+Repeated runs search open issues by exact title and do not create duplicates.
+Healthy reports do not create issues.
+
+#### Личные выводы
+
+Для аудита потребовались уточнения формата отчёта, адреса приложения и
+правила дублей. Были выбраны health endpoint контейнера, ежедневный cron
+в часовом поясе Москвы и ручной workflow_dispatch для сдачи. Доступ к модели
+выделен в отдельном шаге с `continue-on-error`, а фактическое создание issue
+выполняется детерминированным GitHub CLI fallback без изменения рабочего
+дерева. Повторный запуск с той же находкой должен останавливаться по точному
+заголовку open issue.
+
 ---
 
 <details>
