@@ -66,7 +66,7 @@ docker run --rm --env PORT=4321 --publish 4321:4321 calendar-booking:test
 - События: `issue_comment` и `pull_request_review_comment`, только
   `types: [created]`.
 - Команды вызова: `/opencode` и `/oc`.
-- Модель: `openai/gpt-5-mini-fast`.
+- Модель: `opencode/deepseek-v4.1-flash` из каталога OpenCode.
 - Назначение: объяснение issue и PR, обсуждение спецификации, подготовка
   изменений и ответа в комментарии. Решения о мерже остаются за человеком.
 - Результаты появляются в комментарии к issue/PR и в секции Actions
@@ -80,11 +80,11 @@ docker run --rm --env PORT=4321 --publish 4321:4321 calendar-booking:test
   `issues: write`. Checkout сохраняет credentials для операций с ветками и PR.
   Это снимает зависимость от нестабильного OIDC exchange OpenCode GitHub App.
 - Ключ модели хранится только в GitHub Actions Secrets как
-  `OPENAI_API_KEY` и не передаётся событиям pull request из fork.
+  `OPENCODE_API_KEY` и не передаётся событиям pull request из fork.
 
 Перед запуском человек должен установить
 [OpenCode GitHub App](https://github.com/apps/opencode-agent) на этот
-репозиторий и добавить `OPENAI_API_KEY` в **Settings → Secrets and
+репозиторий и добавить `OPENCODE_API_KEY` в **Settings → Secrets and
 variables → Actions**. При другой модели и другом провайдере замените
 значение `model`, переменную провайдера и имя секрета вместе.
 
