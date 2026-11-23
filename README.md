@@ -75,8 +75,10 @@ docker run --rm --env PORT=4321 --publish 4321:4321 calendar-booking:test
   явным collaborators. Сообщения ботов игнорируются.
 - Тайм-аут задания: 20 минут. Параллельные запуски ограничены номером issue
   или pull request; в рамках одного issue новый запуск не отменяет старый.
-- Используется авторизация через OpenCode GitHub App:
-  `contents: read`, `id-token: write`, без сохранённых credentials у checkout.
+- Используется альтернативная авторизация GitHub Actions через встроенный
+  `GITHUB_TOKEN`: `contents: write`, `pull-requests: write`,
+  `issues: write`. Checkout сохраняет credentials для операций с ветками и PR.
+  Это снимает зависимость от нестабильного OIDC exchange OpenCode GitHub App.
 - Ключ модели хранится только в GitHub Actions Secrets как
   `OPENAI_API_KEY` и не передаётся событиям pull request из fork.
 
