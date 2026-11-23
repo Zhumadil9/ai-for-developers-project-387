@@ -87,6 +87,8 @@ docker run --rm --env PORT=4321 --publish 4321:4321 calendar-booking:test
 репозиторий и добавить `OPENAI_API_KEY` в **Settings → Secrets and
 variables → Actions**. При другой модели и другом провайдере замените
 значение `model`, переменную провайдера и имя секрета вместе.
+Для выбранной модели на аккаунте OpenAI должен быть доступный API-биллинг:
+баланс не должен быть исчерпан. Подписка ChatGPT не заменяет API credits.
 
 На свежем runner проверка доступна после checkout репозитория: проектные
 наборы скиллов находятся в `.agents/skills/`, правила — в `AGENTS.md`, а
