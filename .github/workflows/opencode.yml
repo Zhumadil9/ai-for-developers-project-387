@@ -44,8 +44,8 @@ jobs:
             echo "blocked=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          head_ref=$(gh api "repos/${{ github.repository }}/pulls/$pr_number" --jq '.head.ref')
-          attempts=$(gh api "repos/${{ github.repository }}/actions/runs?per_page=100" --jq --arg branch "$head_ref" '[.workflow_runs[] | select(.head_branch == $branch) | select(.name == "opencode")] | map(.run_attempt // 1) | add // 0')
+          head_sha=$(gh api "repos/${{ github.repository }}/pulls/$pr_number" --jq '.head.sha')
+          attempts=$(gh api "repos/${{ github.repository }}/actions/runs?per_page=100" --jq --arg sha "$head_sha" '[.workflow_runs[] | select(.head_sha == $sha) | select(.name == "opencode")] | map(.run_attempt // 1) | add // 0')
           if [ "$attempts" -ge 3 ]; then
             head_sha=$(gh api "repos/${{ github.repository }}/pulls/$pr_number" --jq '.head.sha')
             gh pr comment "$pr_number" --repo "${{ github.repository }}" --body "limit_exhausted: attempt budget for this PR is 3. Last SHA: \`$head_sha\`. Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
