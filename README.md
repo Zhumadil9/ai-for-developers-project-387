@@ -58,6 +58,52 @@ docker run --rm --env PORT=4321 --publish 4321:4321 calendar-booking:test
 
 ---
 
+## GitHub Agent (OpenCode)
+
+В репозитории настроен интерактивный воркфлоу
+[`.github/workflows/opencode.yml`](./.github/workflows/opencode.yml).
+
+- События: `issue_comment` и `pull_request_review_comment`, только
+  `types: [created]`.
+- Команды вызова: `/opencode` и `/oc`.
+- Модель: `anthropic/claude-sonnet-5-5`.
+- Назначение: объяснение issue и PR, обсуждение спецификации, подготовка
+  изменений и ответа в комментарии. Решения о мерже остаются за человеком.
+- Результаты появляются в комментарии к issue/PR и в секции Actions
+  репозитория.
+- Воркфлоу доступен владельцам репозитория, участникам организации и
+  явным collaborators. Сообщения ботов игнорируются.
+- Тайм-аут задания: 20 минут. Параллельные запуски ограничены номером issue
+  или pull request; в рамках одного issue новый запуск не отменяет старый.
+- Используется авторизация через OpenCode GitHub App:
+  `contents: read`, `id-token: write`, без сохранённых credentials у checkout.
+- Ключ модели хранится только в GitHub Actions Secrets как
+  `ANTHROPIC_API_KEY` и не передаётся событиям pull request из fork.
+
+Перед запуском человек должен установить
+[OpenCode GitHub App](https://github.com/apps/opencode-agent) на этот
+репозиторий и добавить `ANTHROPIC_API_KEY` в **Settings → Secrets and
+variables → Actions**. При другой модели и другом провайдере замените
+значение `model`, переменную провайдера и имя секрета вместе.
+
+На свежем runner проверка доступна после checkout репозитория: проектные
+наборы скиллов находятся в `.agents/skills/`, правила — в `AGENTS.md`, а
+настройки трекера и меток — в `docs/agents/`. Агент должен читать
+GitHub Issues этого репозитория и иметь доступ к скиллам `to-spec`,
+`to-tickets` и `implement-spec`.
+
+Для проверки создайте issue и оставьте комментарий:
+
+```text
+/oc explain this issue
+```
+
+Прогон можно открыть во вкладке
+[Actions](https://github.com/Zhumadil9/ai-for-developers-project-387/actions)
+репозитория.
+
+---
+
 <details>
 <summary>Автоматические тесты Хекслета</summary>
 

@@ -8,6 +8,9 @@
 - Код лежит в `backend/`, `frontend/` и `contract/`; сгенерированный SDK не редактировать вручную.
 - Контрактные артефакты находятся в `contract/openapi/` и `frontend/src/api/generated/`; править их вручную запрещено.
 - Фронтенд обращается к API только через сгенерированный SDK.
+- Интерактивный агент запускается в `.github/workflows/opencode.yml`
+  комментариями `/oc` и `/opencode` от владельца, участника организации или
+  collaborator.
 
 ## Agent skills
 
