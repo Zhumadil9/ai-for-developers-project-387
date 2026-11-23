@@ -106,6 +106,17 @@ GitHub Issues этого репозитория и иметь доступ к с
 [Actions](https://github.com/Zhumadil9/ai-for-developers-project-387/actions)
 репозитория.
 
+### Автотриаж новых обращений
+
+Воркфлоу [`.github/workflows/opencode-triage.yml`](./.github/workflows/opencode-triage.yml)
+запускается при открытии нового issue и передает агенту инструкцию из
+`prompt`. Тайм-аут — 15 минут; запуск ограничен номером issue.
+
+Он пропускает только обращения владельца, участника организации или
+explicit collaborator. Сообщения ботов игнорируются. Issues с меткой
+`ready-for-agent` не триажируются повторно, а агент не меняет код и не
+создает implementation tickets на этом этапе.
+
 ---
 
 <details>
