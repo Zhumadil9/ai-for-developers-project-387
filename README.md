@@ -66,7 +66,7 @@ docker run --rm --env PORT=4321 --publish 4321:4321 calendar-booking:test
 - События: `issue_comment` и `pull_request_review_comment`, только
   `types: [created]`.
 - Команды вызова: `/opencode` и `/oc`.
-- Модель: `anthropic/claude-sonnet-5-5`.
+- Модель: `openai/gpt-5-mini`.
 - Назначение: объяснение issue и PR, обсуждение спецификации, подготовка
   изменений и ответа в комментарии. Решения о мерже остаются за человеком.
 - Результаты появляются в комментарии к issue/PR и в секции Actions
@@ -78,11 +78,11 @@ docker run --rm --env PORT=4321 --publish 4321:4321 calendar-booking:test
 - Используется авторизация через OpenCode GitHub App:
   `contents: read`, `id-token: write`, без сохранённых credentials у checkout.
 - Ключ модели хранится только в GitHub Actions Secrets как
-  `ANTHROPIC_API_KEY` и не передаётся событиям pull request из fork.
+  `OPENAI_API_KEY` и не передаётся событиям pull request из fork.
 
 Перед запуском человек должен установить
 [OpenCode GitHub App](https://github.com/apps/opencode-agent) на этот
-репозиторий и добавить `ANTHROPIC_API_KEY` в **Settings → Secrets and
+репозиторий и добавить `OPENAI_API_KEY` в **Settings → Secrets and
 variables → Actions**. При другой модели и другом провайдере замените
 значение `model`, переменную провайдера и имя секрета вместе.
 
