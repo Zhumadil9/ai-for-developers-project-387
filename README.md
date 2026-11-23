@@ -66,7 +66,7 @@ docker run --rm --env PORT=4321 --publish 4321:4321 calendar-booking:test
 - События: `issue_comment` и `pull_request_review_comment`, только
   `types: [created]`.
 - Команды вызова: `/opencode` и `/oc`.
-- Модель: `gpt-5-mini` провайдера OpenAI.
+- Модель: `openai/gpt-5.4-mini-fast`.
 - Назначение: объяснение issue и PR, обсуждение спецификации, подготовка
   изменений и ответа в комментарии. Решения о мерже остаются за человеком.
 - Результаты появляются в комментарии к issue/PR и в секции Actions
