@@ -16,6 +16,7 @@ export type Booking = {
   guestEmail: string
   start: string
   end: string
+  note?: string
   timezone: 'Asia/Almaty'
 }
 
@@ -96,11 +97,12 @@ export function createApp() {
   })
 
   app.post('/bookings', (request, response) => {
-    const { eventTypeId, guestName, guestEmail, start, timezone } = request.body as Partial<{
+    const { eventTypeId, guestName, guestEmail, start, note, timezone } = request.body as Partial<{
       eventTypeId: string
       guestName: string
       guestEmail: string
       start: string
+      note: string
       timezone: 'Asia/Almaty'
     }>
     const eventType = eventTypes.find((item) => item.id === eventTypeId)
@@ -109,6 +111,7 @@ export function createApp() {
     if (!guestName?.trim()) errors.push('guestName')
     if (!guestEmail?.trim()) errors.push('guestEmail')
     if (!start) errors.push('start')
+    if (note !== undefined && (typeof note !== 'string' || note.length > 500)) errors.push('note')
     if (timezone !== 'Asia/Almaty') errors.push('timezone')
 
     if (errors.length > 0) {
@@ -137,6 +140,7 @@ export function createApp() {
       guestEmail: guestEmail!.trim(),
       start: startDate.toISOString(),
       end: endDate.toISOString(),
+      ...(typeof note === 'string' && note.trim() ? { note: note.trim() } : {}),
       timezone: 'Asia/Almaty',
     }
     bookings.push(booking)

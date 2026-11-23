@@ -26,6 +26,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      actions: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -33,7 +34,28 @@ jobs:
           fetch-depth: 1
           persist-credentials: true
 
+      - name: Enforce PR attempt budget
+        id: budget
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pr_number="${{ github.event.issue.number || '' }}"
+          if [ -z "$pr_number" ]; then
+            echo "blocked=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          head_ref=$(gh api "repos/${{ github.repository }}/pulls/$pr_number" --jq '.head.ref')
+          attempts=$(gh api "repos/${{ github.repository }}/actions/runs?per_page=100" --jq --arg branch "$head_ref" '[.workflow_runs[] | select(.head_branch == $branch) | select(.name == "opencode")] | map(.run_attempt // 1) | add // 0')
+          if [ "$attempts" -ge 3 ]; then
+            head_sha=$(gh api "repos/${{ github.repository }}/pulls/$pr_number" --jq '.head.sha')
+            gh pr comment "$pr_number" --repo "${{ github.repository }}" --body "limit_exhausted: attempt budget for this PR is 3. Last SHA: \`$head_sha\`. Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "blocked=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "blocked=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run OpenCode
+        if: steps.budget.outputs.blocked != 'true'
         uses: anomalyco/opencode/github@latest
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

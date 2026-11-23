@@ -29,6 +29,7 @@ model CreateBookingRequest {
   guestName: string;
   guestEmail: string;
   start: string;
+  note?: string;
   timezone: "Asia/Almaty";
 }
 
@@ -39,6 +40,7 @@ model Booking {
   guestEmail: string;
   start: string;
   end: string;
+  note?: string;
   timezone: "Asia/Almaty";
 }
 

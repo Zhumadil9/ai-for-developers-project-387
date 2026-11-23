@@ -51,6 +51,7 @@ function BookingCalendar() {
   const [selected, setSelected] = useState('')
   const [guestName, setGuestName] = useState('')
   const [guestEmail, setGuestEmail] = useState('')
+  const [note, setNote] = useState('')
   const [message, setMessage] = useState('')
   const [confirmed, setConfirmed] = useState(false)
 
@@ -66,7 +67,14 @@ function BookingCalendar() {
     setMessage('')
     const result = await createBooking({
       client,
-      body: { eventTypeId: eventTypeId!, guestName, guestEmail, start: selected, timezone: 'Asia/Almaty' },
+      body: {
+        eventTypeId: eventTypeId!,
+        guestName,
+        guestEmail,
+        start: selected,
+        timezone: 'Asia/Almaty',
+        ...(note.trim() ? { note: note.trim() } : {}),
+      },
     })
     if (result.data) {
       setConfirmed(true)
@@ -95,6 +103,7 @@ function BookingCalendar() {
         <form onSubmit={submit} className="booking-form">
           <label>Имя<input value={guestName} onChange={(event) => setGuestName(event.target.value)} /></label>
           <label>Email<input type="email" value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} /></label>
+          <label>Тема звонка<textarea value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} /></label>
           <button type="submit">Записаться</button>
         </form>
       )}
@@ -104,7 +113,7 @@ function BookingCalendar() {
 }
 
 function UpcomingPage() {
-  const [bookings, setBookings] = useState<Array<{ id: string; eventTypeId: string; guestName: string; start: string }>>([])
+  const [bookings, setBookings] = useState<Array<{ id: string; eventTypeId: string; guestName: string; start: string; note?: string }>>([])
   useEffect(() => {
     listUpcomingBookings({ client }).then(({ data }) => {
       if (data) setBookings(data as typeof bookings)
@@ -117,6 +126,7 @@ function UpcomingPage() {
         <article key={booking.id}>
           <strong>{booking.eventTypeId}</strong>
           <span>{booking.guestName}</span>
+          {booking.note && <span>Тема: {booking.note}</span>}
           <time>{new Date(booking.start).toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' })}</time>
         </article>
       ))}

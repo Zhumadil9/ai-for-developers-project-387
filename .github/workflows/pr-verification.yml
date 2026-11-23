@@ -1,0 +1,53 @@
+name: pr-verification
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: pr-verification-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify-head:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Record exact PR head
+        run: |
+          echo "PR_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          git rev-parse HEAD
+
+      - uses: jdx/mise-action@v3
+      - run: mise run install
+      - run: npx -w frontend playwright install --with-deps chromium
+      - run: npm run check
+
+      - name: Capture screenshot
+        run: |
+          npm run dev &
+          npm run dev:frontend &
+          for attempt in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:3001/health &&
+            curl --fail --silent http://127.0.0.1:5173 >/dev/null &&
+            break
+            sleep 2
+          done
+          npx -w frontend playwright screenshot --device="Desktop Chrome" http://127.0.0.1:5173/owner/bookings pr-owner.png
+
+      - name: Upload head verification artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-head-${{ github.event.pull_request.head.sha }}
+          path: |
+            pr-owner.png
+            frontend/test-results/
+          if-no-files-found: warn

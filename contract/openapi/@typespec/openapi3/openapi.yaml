@@ -113,6 +113,8 @@ components:
           type: string
         end:
           type: string
+        note:
+          type: string
         timezone:
           type: string
           enum:
@@ -151,6 +153,8 @@ components:
         guestEmail:
           type: string
         start:
+          type: string
+        note:
           type: string
         timezone:
           type: string
