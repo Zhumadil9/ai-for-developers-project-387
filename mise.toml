@@ -1,0 +1,32 @@
+[settings]
+experimental = true
+
+[tools]
+node = "24.22.1"
+
+[tasks.install]
+run = "npm ci"
+
+[tasks.contract]
+run = "npm run contract"
+
+[tasks.sdk]
+run = "npm run sdk"
+
+[tasks.dev]
+run = "npm run dev"
+
+[tasks.dev-frontend]
+run = "npm run dev:frontend"
+
+[tasks.test]
+run = "npm run test"
+
+[tasks.lint]
+run = "npm run lint"
+
+[tasks.check]
+run = "npm run check"
+
+[tasks.docker]
+run = "docker build -t calendar-booking:test ."

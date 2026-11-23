@@ -1,0 +1,33 @@
+name: check
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      - run: mise run install
+      - run: npx -w frontend playwright install --with-deps chromium
+      - run: mise run check
+      - name: Build Docker image
+        run: docker build -t calendar-booking:test .
+      - name: Start container on custom PORT
+        run: |
+          docker run --detach --name calendar-booking-test --env PORT=4321 --publish 4321:4321 calendar-booking:test
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4321/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs calendar-booking-test
+          exit 1
+      - name: Stop container
+        if: always()
+        run: docker rm --force calendar-booking-test || true
