@@ -36,9 +36,9 @@ jobs:
       - name: Run OpenCode
         uses: anomalyco/opencode/github@latest
         env:
-          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          model: opencode/deepseek-v4.1-flash
+          model: gpt-5-mini
           mentions: /opencode,/oc
           use_github_token: true
