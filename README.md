@@ -117,6 +117,31 @@ explicit collaborator. Сообщения ботов игнорируются. I
 `ready-for-agent` не триажируются повторно, а агент не меняет код и не
 создает implementation tickets на этом этапе.
 
+### Issue to pull request and review
+
+Implementation pull requests use
+[`.github/pull_request_template.md`](./.github/pull_request_template.md).
+The independent review is configured in
+[`.github/workflows/opencode-review.yml`](./.github/workflows/opencode-review.yml):
+it runs on `pull_request`, is limited to repository branches, cancels stale
+revisions, has a 15-minute timeout and reviews the exact PR head without
+editing files. The model call is separate from the authoring agent.
+
+The exact PR head is verified by
+[`.github/workflows/pr-verification.yml`](./.github/workflows/pr-verification.yml).
+It records `git rev-parse HEAD`, runs the full check suite and captures a
+Playwright trace. Traces are uploaded under `pr-head-<sha>` and must match
+the current PR head before a merge decision.
+
+Interactive OpenCode calls on PR issue comments and review comments are
+limited to three attempts per PR head SHA. The budget is checked before the
+model call and is not stored in editable PR comments. When exhausted, the
+workflow publishes `limit_exhausted`, the last SHA and a link to the logs.
+
+Human feedback is sent with `/oc` in the PR discussion or in a diff-line
+comment. The agent must change the same PR branch; auto-review itself only
+reports defects and does not start an edit loop.
+
 ---
 
 <details>
