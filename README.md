@@ -117,6 +117,69 @@ explicit collaborator. Сообщения ботов игнорируются. I
 `ready-for-agent` не триажируются повторно, а агент не меняет код и не
 создает implementation tickets на этом этапе.
 
+### Issue to pull request and review
+
+Implementation pull requests use
+[`.github/pull_request_template.md`](./.github/pull_request_template.md).
+The independent review is configured in
+[`.github/workflows/opencode-review.yml`](./.github/workflows/opencode-review.yml):
+it runs on `pull_request`, is limited to repository branches, cancels stale
+revisions, has a 15-minute timeout and reviews the exact PR head without
+editing files. The model call is separate from the authoring agent.
+
+The exact PR head is verified by
+[`.github/workflows/pr-verification.yml`](./.github/workflows/pr-verification.yml).
+It records `git rev-parse HEAD`, runs the full check suite and captures a
+Playwright trace. Traces are uploaded under `pr-head-<sha>` and must match
+the current PR head before a merge decision.
+
+Interactive OpenCode calls on PR issue comments and review comments are
+limited to three attempts per PR head SHA. The budget is checked before the
+model call and is not stored in editable PR comments. When exhausted, the
+workflow publishes `limit_exhausted`, the last SHA and a link to the logs.
+
+Human feedback is sent with `/oc` in the PR discussion or in a diff-line
+comment. The agent must change the same PR branch; auto-review itself only
+reports defects and does not start an edit loop.
+
+### Scheduled application audit
+
+The workflow [`.github/workflows/application-audit.yml`](./.github/workflows/application-audit.yml)
+runs daily at 06:17 Moscow time (`17 3 * * *`, `Europe/Moscow`) and can also
+be started manually with **Actions → application-audit → Run workflow**.
+Its concurrency group is single-run, and the audit job has a 20-minute timeout.
+
+The optional repository variable `APP_URL` sets the application address.
+The default local container address is `http://127.0.0.1:4321`. The workflow
+starts the Docker image, checks `/health`, saves `audit-results/report.json`,
+and uploads it as artifact `application-audit-<run_id>` for 30 days.
+For a manual educational finding test, the `audit_url` workflow input overrides
+`APP_URL` for that run; use an unreachable test URL, then repeat the same run
+to verify that the open issue is not duplicated.
+
+The educational fallback issue is
+`Учебная находка аудита: недоступность приложения`. It is labeled
+`educational` and `needs-triage`; it is not a confirmed application defect.
+Repeated runs search open issues by exact title and do not create duplicates.
+Healthy reports do not create issues.
+
+#### Личные выводы
+
+Для аудита потребовались уточнения формата отчёта, адреса приложения и
+правила дублей. Были выбраны health endpoint контейнера, ежедневный cron
+в часовом поясе Москвы и ручной workflow_dispatch для сдачи. Отчёт загружается
+до вызова агента, чтобы агент мог приложить ссылку на артефакт. Создание issue
+также защищено точной проверкой открытого issue по заголовку. Повторный запуск
+с той же находкой не создаёт дубль.
+
+### Публикация сессий агента
+
+Сессии не публикуются автоматически. Используйте `share` только для выбранной
+вручную сессии после проверки, что в ней нет секретов, персональных данных или
+другого приватного контекста. Публикация ссылки на прогон GitHub Actions не
+делает сессию публичной; ссылки на результаты добавляются сюда после успешного
+завершения соответствующих проверок.
+
 ---
 
 <details>

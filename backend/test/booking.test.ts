@@ -35,6 +35,30 @@ describe('booking API', () => {
     expect(conflict.body.message).toContain('overlaps')
   })
 
+  it('rejects an exact duplicate without saving its note', async () => {
+    const app = createApp()
+    await request(app).post('/bookings').send({
+      eventTypeId: 'intro',
+      guestName: 'Алия',
+      guestEmail: 'aliya@example.com',
+      start: '2026-12-01T10:00:00+05:00',
+      timezone: 'Asia/Almaty',
+    })
+
+    const duplicate = await request(app).post('/bookings').send({
+      eventTypeId: 'intro',
+      guestName: 'Дамир',
+      guestEmail: 'damir@example.com',
+      start: '2026-12-01T10:00:00+05:00',
+      timezone: 'Asia/Almaty',
+      note: 'Не должна сохраниться',
+    })
+
+    expect(duplicate.status).toBe(409)
+    expect(bookings).toHaveLength(1)
+    expect(bookings[0].note).toBeUndefined()
+  })
+
   it('allows a booking that starts at an existing booking end', async () => {
     const app = createApp()
     await request(app).post('/bookings').send({
@@ -60,5 +84,84 @@ describe('booking API', () => {
     expect(response.body.errors).toEqual(
       expect.arrayContaining(['eventTypeId', 'guestName', 'guestEmail', 'start', 'timezone']),
     )
+  })
+
+  it('stores and returns an optional booking note', async () => {
+    const response = await request(createApp()).post('/bookings').send({
+      eventTypeId: 'intro',
+      guestName: 'Алия',
+      guestEmail: 'aliya@example.com',
+      start: '2026-12-01T12:00:00+05:00',
+      timezone: 'Asia/Almaty',
+      note: 'Обсудить запуск проекта',
+    })
+
+    expect(response.status).toBe(201)
+    expect(response.body.note).toBe('Обсудить запуск проекта')
+  })
+
+  it('allows booking without a note', async () => {
+    const response = await request(createApp()).post('/bookings').send({
+      eventTypeId: 'intro',
+      guestName: 'Алия',
+      guestEmail: 'aliya@example.com',
+      start: '2026-12-01T13:00:00+05:00',
+      timezone: 'Asia/Almaty',
+    })
+
+    expect(response.status).toBe(201)
+    expect(response.body.note).toBeUndefined()
+  })
+
+  it('allows a null note', async () => {
+    const response = await request(createApp()).post('/bookings').send({
+      eventTypeId: 'intro',
+      guestName: 'Алия',
+      guestEmail: 'aliya@example.com',
+      start: '2026-12-01T13:30:00+05:00',
+      timezone: 'Asia/Almaty',
+      note: null,
+    })
+
+    expect(response.status).toBe(201)
+    expect(response.body.note).toBeUndefined()
+  })
+
+  it('rejects notes longer than 500 characters', async () => {
+    const response = await request(createApp()).post('/bookings').send({
+      eventTypeId: 'intro',
+      guestName: 'Алия',
+      guestEmail: 'aliya@example.com',
+      start: '2026-12-01T14:00:00+05:00',
+      timezone: 'Asia/Almaty',
+      note: 'x'.repeat(501),
+    })
+
+    expect(response.status).toBe(400)
+    expect(response.body.errors).toContain('note')
+  })
+
+  it('does not create a booking or note for a conflicting slot', async () => {
+    const app = createApp()
+    await request(app).post('/bookings').send({
+      eventTypeId: 'planning',
+      guestName: 'Алия',
+      guestEmail: 'aliya@example.com',
+      start: '2026-12-01T15:00:00+05:00',
+      timezone: 'Asia/Almaty',
+    })
+
+    const conflict = await request(app).post('/bookings').send({
+      eventTypeId: 'intro',
+      guestName: 'Дамир',
+      guestEmail: 'damir@example.com',
+      start: '2026-12-01T15:30:00+05:00',
+      timezone: 'Asia/Almaty',
+      note: 'Эта тема не должна сохраниться',
+    })
+
+    expect(conflict.status).toBe(409)
+    expect(bookings).toHaveLength(1)
+    expect(bookings[0].note).toBeUndefined()
   })
 })

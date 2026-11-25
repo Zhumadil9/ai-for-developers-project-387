@@ -1,0 +1,51 @@
+name: opencode-review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: opencode-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: |
+      github.event.pull_request.user.type != 'Bot' &&
+      !endsWith(github.event.pull_request.user.login, '[bot]') &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: read
+      actions: read
+      checks: read
+      statuses: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Run independent CLI review
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+          export PATH="$HOME/.opencode/bin:$PATH"
+          opencode run --model openai/gpt-5.4-mini-fast \
+            "Review this pull request against REVIEW.md and the linked specification. Report only confirmed defects. Include file, line, violated condition, and consequence. Do not edit files." \
+            > review.md
+          gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file review.md
+
+      - name: Publish infrastructure review result
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body "infra: independent review could not call the model. Last SHA: \`${{ github.event.pull_request.head.sha }}\`. Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
