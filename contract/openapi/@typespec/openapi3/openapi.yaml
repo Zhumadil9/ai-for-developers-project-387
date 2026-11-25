@@ -115,6 +115,8 @@ components:
           type: string
         note:
           type: string
+          nullable: true
+          maxLength: 500
         timezone:
           type: string
           enum:
@@ -156,6 +158,8 @@ components:
           type: string
         note:
           type: string
+          nullable: true
+          maxLength: 500
         timezone:
           type: string
           enum:

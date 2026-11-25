@@ -102,7 +102,7 @@ export function createApp() {
       guestName: string
       guestEmail: string
       start: string
-      note: string
+      note: string | null
       timezone: 'Asia/Almaty'
     }>
     const eventType = eventTypes.find((item) => item.id === eventTypeId)
@@ -111,7 +111,7 @@ export function createApp() {
     if (!guestName?.trim()) errors.push('guestName')
     if (!guestEmail?.trim()) errors.push('guestEmail')
     if (!start) errors.push('start')
-    if (note !== undefined && (typeof note !== 'string' || note.length > 500)) errors.push('note')
+    if (note !== undefined && note !== null && (typeof note !== 'string' || note.length > 500)) errors.push('note')
     if (timezone !== 'Asia/Almaty') errors.push('timezone')
 
     if (errors.length > 0) {

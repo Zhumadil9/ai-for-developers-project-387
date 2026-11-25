@@ -153,6 +153,9 @@ The optional repository variable `APP_URL` sets the application address.
 The default local container address is `http://127.0.0.1:4321`. The workflow
 starts the Docker image, checks `/health`, saves `audit-results/report.json`,
 and uploads it as artifact `application-audit-<run_id>` for 30 days.
+For a manual educational finding test, the `audit_url` workflow input overrides
+`APP_URL` for that run; use an unreachable test URL, then repeat the same run
+to verify that the open issue is not duplicated.
 
 The educational fallback issue is
 `Учебная находка аудита: недоступность приложения`. It is labeled
@@ -164,11 +167,18 @@ Healthy reports do not create issues.
 
 Для аудита потребовались уточнения формата отчёта, адреса приложения и
 правила дублей. Были выбраны health endpoint контейнера, ежедневный cron
-в часовом поясе Москвы и ручной workflow_dispatch для сдачи. Доступ к модели
-выделен в отдельном шаге с `continue-on-error`, а фактическое создание issue
-выполняется детерминированным GitHub CLI fallback без изменения рабочего
-дерева. Повторный запуск с той же находкой должен останавливаться по точному
-заголовку open issue.
+в часовом поясе Москвы и ручной workflow_dispatch для сдачи. Отчёт загружается
+до вызова агента, чтобы агент мог приложить ссылку на артефакт. Создание issue
+также защищено точной проверкой открытого issue по заголовку. Повторный запуск
+с той же находкой не создаёт дубль.
+
+### Публикация сессий агента
+
+Сессии не публикуются автоматически. Используйте `share` только для выбранной
+вручную сессии после проверки, что в ней нет секретов, персональных данных или
+другого приватного контекста. Публикация ссылки на прогон GitHub Actions не
+делает сессию публичной; ссылки на результаты добавляются сюда после успешного
+завершения соответствующих проверок.
 
 ---
 

@@ -5,6 +5,11 @@ on:
     - cron: "17 3 * * *"
       timezone: Europe/Moscow
   workflow_dispatch:
+    inputs:
+      audit_url:
+        description: Optional URL override for a manual educational finding test
+        required: false
+        type: string
 
 concurrency:
   group: application-audit
@@ -25,7 +30,7 @@ jobs:
 
       - name: Build and collect application report
         env:
-          APP_URL: ${{ vars.APP_URL }}
+          APP_URL: ${{ inputs.audit_url || vars.APP_URL }}
         run: |
           mkdir -p audit-results
           target="${APP_URL:-http://127.0.0.1:4321}"
@@ -44,7 +49,7 @@ jobs:
 
       - name: Save application report
         env:
-          APP_URL: ${{ vars.APP_URL }}
+          APP_URL: ${{ inputs.audit_url || vars.APP_URL }}
           AUDIT_STATUS: ${{ env.AUDIT_STATUS }}
         run: |
           node - <<'NODE'
@@ -65,8 +70,16 @@ jobs:
           fs.writeFileSync('audit-results/report.json', JSON.stringify(report, null, 2))
           NODE
 
+      - name: Upload audit report
+        if: always()
+        id: audit-report
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-audit-${{ github.run_id }}
+          path: audit-results/report.json
+          retention-days: 30
+
       - name: Run OpenCode audit
-        continue-on-error: true
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -84,13 +97,14 @@ jobs:
             If the report contains a finding and no exact duplicate exists, create one issue
             labeled educational and needs-triage. Include problem, recommended action,
             APP_URL, this run URL, and the audit report artifact.
+            Report artifact URL: ${{ steps.audit-report.outputs.artifact-url }}
             Do not modify code or create implementation tickets.
 
       - name: Publish or deduplicate educational finding
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          APP_URL: ${{ vars.APP_URL }}
+          APP_URL: ${{ inputs.audit_url || vars.APP_URL }}
         run: |
           status=$(node -e "const fs=require('node:fs'); const p=JSON.parse(fs.readFileSync('audit-results/report.json','utf8')); process.stdout.write(p.status || 'unavailable')")
           if [ "$status" = "healthy" ]; then
@@ -99,41 +113,36 @@ jobs:
           fi
           title="Учебная находка аудита: недоступность приложения"
           gh label create educational --repo "${{ github.repository }}" --color EDEDED --description "Учебная находка автоматического аудита" --force
-          existing=$(gh issue list --repo "${{ github.repository }}" --state open --search "in:title \"$title\"" --json title --jq '.[].title')
-          if [ -n "$existing" ]; then
+          existing_titles=$(gh issue list --repo "${{ github.repository }}" --state open --search "in:title \"$title\"" --limit 100 --json title --jq '.[].title')
+          if printf '%s\n' "$existing_titles" | grep --fixed-strings --line-regexp --quiet -- "$title"; then
             echo "Duplicate issue already exists: $title"
             exit 0
           fi
+          body=$(cat <<EOF
+          ## Учебная находка
+
+          Это учебная находка аудита, а не подтверждённый дефект приложения.
+
+          ## Проблема
+
+          Адрес приложения, переданный аудиту, должен быть доступен для проверки health endpoint.
+
+          ## Предлагаемое действие
+
+          Проверить переменную APP_URL и доступность приложения, затем повторно запустить audit workflow.
+
+          ## Отчёт
+
+          Приложение: ${APP_URL:-http://127.0.0.1:4321}
+          Прогон: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Артефакт: ${{ steps.audit-report.outputs.artifact-url }}
+          EOF
+          )
           gh issue create \
             --repo "${{ github.repository }}" \
             --title "$title" \
             --label "educational,needs-triage" \
-            --body "## Учебная находка
-
-Это учебная находка аудита, а не подтверждённый дефект приложения.
-
-## Проблема
-
-Адрес приложения, переданный аудиту, должен быть доступен для проверки health endpoint.
-
-## Предлагаемое действие
-
-Проверить переменную APP_URL и доступность приложения, затем повторно запустить audit workflow.
-
-## Отчёт
-
-Приложение: \`${APP_URL:-http://127.0.0.1:4321}\`
-Прогон: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-Отчёт сохранён артефактом этого workflow и не хранится в рабочем дереве."
-
-      - name: Upload audit report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: application-audit-${{ github.run_id }}
-          path: audit-results/report.json
-          retention-days: 30
+            --body "$body"
 
       - name: Stop audit container
         if: always()

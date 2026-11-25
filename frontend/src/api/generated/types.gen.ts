@@ -7,7 +7,7 @@ export type Booking = {
     guestEmail: string;
     start: string;
     end: string;
-    note?: string;
+    note?: string | null;
     timezone: 'Asia/Almaty';
 };
 
@@ -24,7 +24,7 @@ export type CreateBookingRequest = {
     guestName: string;
     guestEmail: string;
     start: string;
-    note?: string;
+    note?: string | null;
     timezone: 'Asia/Almaty';
 };
 

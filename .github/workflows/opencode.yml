@@ -38,17 +38,21 @@ jobs:
         id: budget
         env:
           GH_TOKEN: ${{ github.token }}
+          IS_PULL_REQUEST: ${{ github.event.issue.pull_request != null || github.event.pull_request.number != null }}
+          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || '' }}
         run: |
-          pr_number="${{ github.event.issue.number || '' }}"
-          if [ -z "$pr_number" ]; then
+          if [ "$IS_PULL_REQUEST" != "true" ] || [ -z "$PR_NUMBER" ]; then
             echo "blocked=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          head_sha=$(gh api "repos/${{ github.repository }}/pulls/$pr_number" --jq '.head.sha')
-          attempts=$(gh api "repos/${{ github.repository }}/actions/runs?per_page=100" --jq --arg sha "$head_sha" '[.workflow_runs[] | select(.head_sha == $sha) | select(.name == "opencode")] | map(.run_attempt // 1) | add // 0')
+          head_sha=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER" --jq '.head.sha')
+          attempts=$(gh api --paginate "repos/${{ github.repository }}/actions/runs?head_sha=$head_sha&per_page=100" \
+            --jq --argjson current_run_id "$GITHUB_RUN_ID" \
+            '.workflow_runs[] | select(.name == "opencode" and .id != $current_run_id and .conclusion != "skipped") | (.run_attempt // 1)' |
+            awk '{ total += $1 } END { print total + 0 }')
+          attempts=$((attempts + GITHUB_RUN_ATTEMPT - 1))
           if [ "$attempts" -ge 3 ]; then
-            head_sha=$(gh api "repos/${{ github.repository }}/pulls/$pr_number" --jq '.head.sha')
-            gh pr comment "$pr_number" --repo "${{ github.repository }}" --body "limit_exhausted: attempt budget for this PR is 3. Last SHA: \`$head_sha\`. Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            gh pr comment "$PR_NUMBER" --repo "${{ github.repository }}" --body "limit_exhausted: 3 OpenCode attempts were already used for this PR head; no model call was made. Last SHA: \`$head_sha\`. Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             echo "blocked=true" >> "$GITHUB_OUTPUT"
           else
             echo "blocked=false" >> "$GITHUB_OUTPUT"

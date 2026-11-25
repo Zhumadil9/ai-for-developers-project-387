@@ -35,6 +35,30 @@ describe('booking API', () => {
     expect(conflict.body.message).toContain('overlaps')
   })
 
+  it('rejects an exact duplicate without saving its note', async () => {
+    const app = createApp()
+    await request(app).post('/bookings').send({
+      eventTypeId: 'intro',
+      guestName: 'Алия',
+      guestEmail: 'aliya@example.com',
+      start: '2026-12-01T10:00:00+05:00',
+      timezone: 'Asia/Almaty',
+    })
+
+    const duplicate = await request(app).post('/bookings').send({
+      eventTypeId: 'intro',
+      guestName: 'Дамир',
+      guestEmail: 'damir@example.com',
+      start: '2026-12-01T10:00:00+05:00',
+      timezone: 'Asia/Almaty',
+      note: 'Не должна сохраниться',
+    })
+
+    expect(duplicate.status).toBe(409)
+    expect(bookings).toHaveLength(1)
+    expect(bookings[0].note).toBeUndefined()
+  })
+
   it('allows a booking that starts at an existing booking end', async () => {
     const app = createApp()
     await request(app).post('/bookings').send({
@@ -83,6 +107,20 @@ describe('booking API', () => {
       guestEmail: 'aliya@example.com',
       start: '2026-12-01T13:00:00+05:00',
       timezone: 'Asia/Almaty',
+    })
+
+    expect(response.status).toBe(201)
+    expect(response.body.note).toBeUndefined()
+  })
+
+  it('allows a null note', async () => {
+    const response = await request(createApp()).post('/bookings').send({
+      eventTypeId: 'intro',
+      guestName: 'Алия',
+      guestEmail: 'aliya@example.com',
+      start: '2026-12-01T13:30:00+05:00',
+      timezone: 'Asia/Almaty',
+      note: null,
     })
 
     expect(response.status).toBe(201)
